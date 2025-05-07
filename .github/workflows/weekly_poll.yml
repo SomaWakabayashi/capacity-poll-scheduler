@@ -15,11 +15,20 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL_ID }}
         run: |
-          # 組み立て用 JSON を生成
-          payload=$(jq -nc \
-            --arg channel "$SLACK_CHANNEL" \
-            --arg text "*今週のキャパはどうですか？*\n:one: ◎ 余裕あり\n:two: ◯ ちょうどいい\n:three: △ 少しきつい\n:four: ✕ 大キャパり\n\nリアクションで選んでください！" \
-            '{channel: $channel, text: $text}')
+         # 本文を改行込みで定義
+         read -r -d '' text << 'EOF'
+*今週のキャパはどうですか？*
+:1: ◎ 余裕あり
+:2: ◯ ちょうどいい
+:3: △ 少しきつい
+:4: ✕ 大キャパり
+EOF
+
+         # 組み立て用 JSON を生成
+         payload=$(jq -nc \
+           --arg channel "$SLACK_CHANNEL" \
+           --arg text "$text" \
+           '{channel: $channel, text: $text}')
           
           # API 呼び出しとレスポンス取得
           resp=$(curl -s -X POST "https://slack.com/api/chat.postMessage" \
