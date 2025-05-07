@@ -1,7 +1,7 @@
 name: Slack Capacity Poll
 
-on:
-  workflow_dispatch: {}    # 手動実行のみ（後で schedule: に戻せます）
+# ← This line tells GH “only run me when somebody clicks ‘Run workflow’”
+on: workflow_dispatch
 
 jobs:
   post_poll:
@@ -11,38 +11,34 @@ jobs:
         id: post
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL_ID }}
+          SLACK_CHANNEL:   ${{ secrets.SLACK_CHANNEL_ID }}
         run: |
-          # メッセージ本文をここドキュメントで定義（実際に改行したテキスト）
-          read -r -d '' text << 'EOF'
-*今週のキャパはどうですか？*
+          # build the multi-line message
+          read -r -d '' TEXT << 'EOF'
 :1: ◎ 余裕あり
 :2: ◯ ちょうどいい
 :3: △ 少しきつい
 :4: ✕ 大キャパり
 EOF
-          # JSON ペイロードを組み立て
-          payload=$(jq -nc \
+          PAYLOAD=$(jq -nc \
             --arg channel "$SLACK_CHANNEL" \
-            --arg text "$text" \
+            --arg text "$TEXT" \
             '{channel: $channel, text: $text}')
-          # メッセージ投稿
-          resp=$(curl -s -X POST "https://slack.com/api/chat.postMessage" \
+          RESP=$(curl -s -X POST "https://slack.com/api/chat.postMessage" \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
             -H "Content-Type: application/json" \
-            --data "$payload")
-          echo "Slack API response: $resp"
-          ts=$(echo "$resp" | jq -r .ts)
+            --data "$PAYLOAD")
+          echo "Slack API response: $RESP"
 
       - name: Add default reactions in custom order
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL_ID }}
+          SLACK_CHANNEL:   ${{ secrets.SLACK_CHANNEL_ID }}
         run: |
-          # リアクションの付与順を 4→1→3→2 に指定
-          for name in one two three four; do
+          # four→one→three→two
+          for name in four one three two; do
             curl -s -X POST "https://slack.com/api/reactions.add" \
               -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
               -H "Content-Type: application/json" \
-              --data "{\"channel\":\"$SLACK_CHANNEL\",\"timestamp\":\"$ts\",\"name\":\"$name\"}"
+              --data "{\"channel\":\"$SLACK_CHANNEL\",\"timestamp\":\"${{ steps.post.outputs.ts }}\",\"name\":\"$name\"}"
           done
