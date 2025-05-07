@@ -15,22 +15,23 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL_ID }}
         run: |
-          # 組み立て用 JSON を生成
+          # Bash の ANSI-C quoting で改行を含む文字列を定義
+          TEXT=$'*今週のキャパはどうですか？*\n:1: ◎ 余裕あり\n:2: ◯ ちょうどいい\n:3: △ 少しきつい\n:4: ✕ 大キャパり'
+
+          # jq で JSON を組み立て
           payload=$(jq -nc \
             --arg channel "$SLACK_CHANNEL" \
-            --arg text "*今週のキャパはどうですか？*\n:one: ◎ 余裕あり\n:two: ◯ ちょうどいい\n:three: △ 少しきつい\n:four: ✕ 大キャパり\n\nリアクションで選んでください！" \
+            --arg text "$TEXT" \
             '{channel: $channel, text: $text}')
-          
-          # API 呼び出しとレスポンス取得
+
+          # メッセージ投稿
           resp=$(curl -s -X POST "https://slack.com/api/chat.postMessage" \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
             -H "Content-Type: application/json" \
             --data "$payload")
-          
-          # デバッグ出力（必要に応じて外してOK）
           echo "Slack API response: $resp"
-          
-          # ts を抽出して GITHUB_OUTPUT にセット
+
+          # ts を抽出
           ts=$(echo "$resp" | jq -r .ts)
           echo "ts=$ts" >> $GITHUB_OUTPUT
 
