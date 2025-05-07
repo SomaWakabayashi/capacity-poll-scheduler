@@ -19,7 +19,7 @@ jobs:
           SLACK_CHANNEL:   ${{ secrets.SLACK_CHANNEL_ID }}
         run: |
           # Bash の ANSI-C quoting で改行込みテキストを定義
-          TEXT=$'*今週のキャパはどうですか？*\n:1: ◎ 余裕あり\n:2: ◯ ちょうどいい\n:3: △ 少しきつい\n:4: ✕ 大キャパり'
+          TEXT=$'*今週のキャパは？*\n:one: ◎ 余裕あり\n:two: ◯ ちょうどいい\n:three: △ 少しきつい\n:four: ✕ 大キャパり'
 
           # JSON payload を組み立て
           payload=$(jq -nc \
@@ -43,8 +43,7 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ secrets.SLACK_CHANNEL_ID }}
         run: |
-          # four → one → three → two の順にリアクションを付与
-          for name in four one three two; do
+          for name in one two three four; do
             curl -s -X POST "https://slack.com/api/reactions.add" \
               -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
               -H "Content-Type: application/json" \
