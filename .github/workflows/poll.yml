@@ -1,7 +1,8 @@
 name: Slack Capacity Poll
 
 # ← This line tells GH “only run me when somebody clicks ‘Run workflow’”
-on: workflow_dispatch
+on: 
+  workflow_dispatch:
 
 jobs:
   post_poll:
