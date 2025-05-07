@@ -2,8 +2,7 @@ name: Weekly Slack Poll
 
 on:
   schedule:
-    # 毎週月曜 00:00 UTC → 09:00 JST
-    - cron: '0 0 * * 1'
+    - cron: '0 0 * * 1'    # 毎週月曜 00:00 UTC (JST 09:00)
   workflow_dispatch:
 
 jobs:
@@ -16,18 +15,23 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL_ID }}
         run: |
-          # JSON 組み立て
+          # 組み立て用 JSON を生成
           payload=$(jq -nc \
             --arg channel "$SLACK_CHANNEL" \
             --arg text "*今週のキャパはどうですか？*\n:one: ◎ 余裕あり\n:two: ◯ ちょうどいい\n:three: △ 少しきつい\n:four: ✕ 大キャパり\n\nリアクションで選んでください！" \
             '{channel: $channel, text: $text}')
-          # メッセージを Bot で投稿し、ts を取得
-          resp=$(curl -s -X POST https://slack.com/api/chat.postMessage \
+          
+          # API 呼び出しとレスポンス取得
+          resp=$(curl -s -X POST "https://slack.com/api/chat.postMessage" \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
             -H "Content-Type: application/json" \
             --data "$payload")
+          
+          # デバッグ出力（必要に応じて外してOK）
+          echo "Slack API response: $resp"
+          
+          # ts を抽出して GITHUB_OUTPUT にセット
           ts=$(echo "$resp" | jq -r .ts)
-          # 最新の GitHub Actions 形式で出力
           echo "ts=$ts" >> $GITHUB_OUTPUT
 
       - name: Add default reactions
@@ -36,7 +40,7 @@ jobs:
           SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL_ID }}
         run: |
           for name in one two three four; do
-            curl -s -X POST https://slack.com/api/reactions.add \
+            curl -s -X POST "https://slack.com/api/reactions.add" \
               -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
               -H "Content-Type: application/json" \
               --data "{\"channel\":\"$SLACK_CHANNEL\",\"timestamp\":\"${{ steps.post.outputs.ts }}\",\"name\":\"$name\"}"
