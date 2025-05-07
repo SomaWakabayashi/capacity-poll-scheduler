@@ -1,12 +1,16 @@
-name: Slack Capacity Poll
+name: Weekly Slack Poll
 
-# ← This line tells GH “only run me when somebody clicks ‘Run workflow’”
-on: 
+on:
+  # 毎週月曜 00:00 UTC = JST 月曜 09:00
+  schedule:
+    - cron: '0 0 * * 1'
+  # 手動実行用トリガーも有効
   workflow_dispatch:
 
 jobs:
   post_poll:
     runs-on: ubuntu-latest
+
     steps:
       - name: Post poll to Slack via Bot
         id: post
@@ -14,29 +18,32 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ secrets.SLACK_CHANNEL_ID }}
         run: |
-          # build the multi-line message
-          read -r -d '' TEXT << 'EOF'
-:1: ◎ 余裕あり
-:2: ◯ ちょうどいい
-:3: △ 少しきつい
-:4: ✕ 大キャパり
-EOF
-          PAYLOAD=$(jq -nc \
+          # Bash の ANSI-C quoting で改行込みテキストを定義
+          TEXT=$'*今週のキャパはどうですか？*\n:1: ◎ 余裕あり\n:2: ◯ ちょうどいい\n:3: △ 少しきつい\n:4: ✕ 大キャパり'
+
+          # JSON payload を組み立て
+          payload=$(jq -nc \
             --arg channel "$SLACK_CHANNEL" \
             --arg text "$TEXT" \
             '{channel: $channel, text: $text}')
-          RESP=$(curl -s -X POST "https://slack.com/api/chat.postMessage" \
+
+          # メッセージ投稿
+          resp=$(curl -s -X POST "https://slack.com/api/chat.postMessage" \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
             -H "Content-Type: application/json" \
-            --data "$PAYLOAD")
-          echo "Slack API response: $RESP"
+            --data "$payload")
+          echo "Slack API response: $resp"
+
+          # ts を取り出して出力
+          ts=$(echo "$resp" | jq -r .ts)
+          echo "ts=$ts" >> $GITHUB_OUTPUT
 
       - name: Add default reactions in custom order
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ secrets.SLACK_CHANNEL_ID }}
         run: |
-          # four→one→three→two
+          # four → one → three → two の順にリアクションを付与
           for name in four one three two; do
             curl -s -X POST "https://slack.com/api/reactions.add" \
               -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
