@@ -2,7 +2,8 @@ name: Weekly Slack Poll
 
 on:
   schedule:
-    - cron: '0 1 * * 1'    # 毎週月曜01:00 UTC (= 月曜10:00 JST)
+    # 毎週月曜 00:00 UTC = 09:00 JST
+    - cron: '0 0 * * 1'
   workflow_dispatch:
 
 jobs:
@@ -10,11 +11,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Post poll to Slack
+        id: post
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL_ID }}
         run: |
-          curl -X POST -H 'Content-Type: application/json' \
-            --data '{
-              "text": "*今週のキャパはどうですか？*\n:one: ◎ 余裕あり\n:two: ◯ ちょうどいい\n:three: △ 少しきつい\n:four: ✕ 大キャパり\n\nリアクションで選んでください！"
-            }' \
-            "$SLACK_WEBHOOK_URL"
+          # jq が入っているので JSON 組み立てに利用
+          payload=$(jq -nc \
+            --arg channel "$SLACK_CHANNEL" \
+            --arg text "*今週のキャパはどうですか？*\n:one: ◎ 余裕あり\n:two: ◯ ちょうどいい\n:three: △ 少しきつい\n:four: ✕ 大キャパり\n\nリアクションで選んでください！" \
+            '{channel: $channel, text: $text}')
+          # メッセージ投稿し、ts を出力
+          resp=$(curl -s -X POST https://slack.com/api/chat.postMessage \
+            -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "$payload")
+          ts=$(echo "$resp" | jq -r .ts)
+          echo "::set-output name=ts::$ts"
+
+      - name: Add default reactions
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL_ID }}
+        run: |
+          # 投稿されたメッセージに :one:～:four: を付与
+          for name in one two three four; do
+            curl -s -X POST https://slack.com/api/reactions.add \
+              -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+              -H "Content-Type: application/json" \
+              --data "{\"channel\":\"$SLACK_CHANNEL\",\"timestamp\":\"${{ steps.post.outputs.ts }}\",\"name\":\"$name\"}"
+          done
