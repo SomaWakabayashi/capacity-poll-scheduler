@@ -1,0 +1,40 @@
+name: Weekly Slack Poll
+
+on:
+  # 毎週月曜 00:00 UTC = JST 月曜 09:00
+  schedule:
+    - cron: '0 0 * * 1'
+  # 手動実行用トリガーも有効
+  workflow_dispatch:
+
+jobs:
+  post_poll:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Post poll to Slack via Bot (debug)
+        id: post
+        run: |
+          TEXT=$'*今週のキャパは？*\n\n:one: ◎ 余裕あり\n\n:two: ◯ ちょうどいい\n\n:three: △ 少しきつい\n\n:four: ✕ 大キャパり'
+          PAYLOAD=$(jq -nc --arg channel "$SLACK_CHANNEL" --arg text "$TEXT" \
+            '{channel: $channel, text: $text}')
+          RESP=$(curl -s -X POST "https://slack.com/api/chat.postMessage" \
+            -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "$PAYLOAD")
+          echo "=== DEBUG: Posting to channel $SLACK_CHANNEL ==="
+          echo "Slack response: $RESP"
+          echo "ts=$(echo "$RESP" | jq -r .ts)" >> $GITHUB_OUTPUT
+
+
+      - name: Add default reactions in custom order
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL:   ${{ secrets.SLACK_CHANNEL_ID }}
+        run: |
+          for name in one two three four; do
+            curl -s -X POST "https://slack.com/api/reactions.add" \
+              -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+              -H "Content-Type: application/json" \
+              --data "{\"channel\":\"$SLACK_CHANNEL\",\"timestamp\":\"${{ steps.post.outputs.ts }}\",\"name\":\"$name\"}"
+          done
