@@ -1,0 +1,45 @@
+# .github/workflows/weekly_poll.yml
+name: 毎週 Slack キャパポーリング
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'    # 毎週月曜00:00 UTC (= 月曜09:00 JST)
+  workflow_dispatch:
+    inputs:
+      target_channel:
+        description: '投稿先のチャンネルID (例: C01234567)'
+        required: false
+        default: ${{ secrets.SLACK_CHANNEL_ID }}
+
+jobs:
+  post_poll:
+    runs-on: ubuntu-latest
+    env:
+      # Bot トークンはそのまま secrets から
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      # workflow_dispatch の入力値を使い、未入力なら secret の値を参照
+      SLACK_CHANNEL:   ${{ github.event.inputs.target_channel }}
+    steps:
+      - name: Post poll to Slack via Bot
+        id: post
+        run: |
+          TEXT=$'*今週のキャパは？*\n:one: ◎ 余裕あり\n:two: ◯ ちょうどいい\n:three: △ 少しきつい\n:four: ✕ 大キャパり'
+          PAYLOAD=$(jq -nc \
+            --arg channel "$SLACK_CHANNEL" \
+            --arg text "$TEXT" \
+            '{channel: $channel, text: $text}')
+          RESP=$(curl -s -X POST "https://slack.com/api/chat.postMessage" \
+            -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "$PAYLOAD")
+          echo "ts=$(echo "$RESP" | jq -r .ts)" >> $GITHUB_OUTPUT
+
+      - name: Add default reactions
+        run: |
+          TS="${{ steps.post.outputs.ts }}"
+          for name in four one three two; do
+            curl -s -X POST "https://slack.com/api/reactions.add" \
+              -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+              -H "Content-Type: application/json" \
+              --data "{\"channel\":\"$SLACK_CHANNEL\",\"timestamp\":\"$TS\",\"name\":\"$name\"}"
+          done
