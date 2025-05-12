@@ -15,7 +15,7 @@ jobs:
       - name: Post poll to Slack via Bot (debug)
         id: post
         run: |
-          TEXT=$'*今週のキャパは？*\n\n:one: ◎ 余裕あり\n\n:two: ◯ ちょうどいい\n\n:three: △ 少しきつい\n\n:four: ✕ 大キャパり'
+          TEXT=$'<!channel>\n\n*今週のキャパは？*\n\n:one: ◎ 余裕あり 💪\n\n:two: ◯ ちょうどいい 👌\n\n:three: △ 少しきつい 👌\n\n:four: ✕ 大キャパり 🚨'
           PAYLOAD=$(jq -nc --arg channel "$SLACK_CHANNEL" --arg text "$TEXT" \
             '{channel: $channel, text: $text}')
           RESP=$(curl -s -X POST "https://slack.com/api/chat.postMessage" \
