@@ -19,7 +19,7 @@ jobs:
           SLACK_CHANNEL:   ${{ secrets.SLACK_CHANNEL_ID }}
         run: |
           # Bash の ANSI-C quoting で改行込みテキストを定義
-          TEXT=$'<!channel>\n\n*今週のキャパは？*\n\n:one: ◎ 余裕あり 💪\n\n:two: ◯ ちょうどいい 👌\n\n:three: △ 少しきつい 👌\n\n:four: ✕ 大キャパり 🚨'
+          TEXT=$'<!channel>\n\n*今週のキャパは？*\n\n:one: ◎ 余裕あり 💪\n\n:two: ◯ ちょうどいい 👌\n\n:three: △ 少しきつい 😓\n\n:four: ✕ 大キャパり 🚨'
 
           # JSON payload を組み立て
           payload=$(jq -nc \
